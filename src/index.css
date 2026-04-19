@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --eui-navy: #0f265c;
+  --eui-blue: #175fb8;
+  --eui-teal: #177c7a;
+  --eui-gold: #c49645;
+  --eui-sand: #efe5d2;
+  --eui-ink: #0f172a;
+}
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(196, 150, 69, 0.15), transparent 32%),
+    linear-gradient(180deg, #f9fbff 0%, #eef4fb 100%);
+}
+
+body {
+  min-height: 100vh;
+  color: var(--eui-ink);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(23, 124, 122, 0.12), transparent 22%),
+    radial-gradient(circle at 85% 10%, rgba(23, 95, 184, 0.12), transparent 26%),
+    linear-gradient(180deg, #f9fbff 0%, #eef4fb 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
