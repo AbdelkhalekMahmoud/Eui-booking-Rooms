@@ -1,6 +1,11 @@
 import { db } from "./firebase.js";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { createBooking } from "./bookingService.js";
+import {
+  createNotification,
+  createNotifications,
+  getAdmins,
+} from "./notificationService.js";
 
 export const getRequests = async () => {
   try {
@@ -58,6 +63,22 @@ export const createRequest = async (requestData) => {
       createdAt: new Date().toISOString(),
     };
     await set(newRequestRef, requestWithTimestamp);
+
+    const admins = await getAdmins();
+    await createNotifications(
+      admins.map((admin) => ({
+        userId: admin.id,
+        title: "New booking request",
+        message: `${requestWithTimestamp.userName || requestWithTimestamp.email || "A user"} requested ${requestWithTimestamp.roomName || requestWithTimestamp.roomId} on ${requestWithTimestamp.date} from ${requestWithTimestamp.startTime} to ${requestWithTimestamp.endTime}.`,
+        type: "request",
+        metadata: {
+          requestId: newRequestRef.key,
+          roomId: requestWithTimestamp.roomId,
+          date: requestWithTimestamp.date,
+        },
+      })),
+    );
+
     return { id: newRequestRef.key, ...requestWithTimestamp };
   } catch (error) {
     console.error("Error creating request:", error);
@@ -93,13 +114,28 @@ export const approveRequest = async (requestId, approvedBy = null) => {
     if (!request) throw new Error("Request not found");
 
     // Move to bookings
-    await createBooking(request.roomId, request.date, {
+    const approvedBooking = {
       ...request,
       status: "approved",
       approvedAt: new Date().toISOString(),
       approvedByName: approvedBy?.name || approvedBy?.email || "Admin",
       approvedByEmail: approvedBy?.email || "",
-    });
+    };
+    await createBooking(request.roomId, request.date, approvedBooking);
+
+    if (request.userId) {
+      await createNotification({
+        userId: request.userId,
+        title: "Booking approved",
+        message: `Your request for ${request.roomName || request.roomId} on ${request.date} from ${request.startTime} to ${request.endTime} has been approved.`,
+        type: "approved",
+        metadata: {
+          requestId,
+          roomId: request.roomId,
+          date: request.date,
+        },
+      });
+    }
 
     // Delete from requests
     await deleteRequest(requestId);
@@ -111,9 +147,57 @@ export const approveRequest = async (requestId, approvedBy = null) => {
   }
 };
 
-export const rejectRequest = async (requestId) => {
+export const getUserRequests = async (userId) => {
   try {
-    await updateRequest(requestId, { status: "rejected" });
+    const requests = await getRequests();
+    return requests
+      .filter((request) => request.userId === userId)
+      .map((request) => ({
+        ...request,
+        source: "request",
+      }));
+  } catch (error) {
+    console.error("Error fetching user requests:", error);
+    throw error;
+  }
+};
+
+export const rejectRequest = async (
+  requestId,
+  rejectionReason,
+  rejectedBy = null,
+) => {
+  try {
+    const request = await getRequest(requestId);
+    if (!request) throw new Error("Request not found");
+
+    const trimmedReason = String(rejectionReason || "").trim();
+    if (!trimmedReason) {
+      throw new Error("Rejection reason is required");
+    }
+
+    await updateRequest(requestId, {
+      status: "rejected",
+      rejectionReason: trimmedReason,
+      rejectedAt: new Date().toISOString(),
+      rejectedByName: rejectedBy?.name || rejectedBy?.email || "Admin",
+      rejectedByEmail: rejectedBy?.email || "",
+    });
+
+    if (request.userId) {
+      await createNotification({
+        userId: request.userId,
+        title: "Booking rejected",
+        message: `Your request for ${request.roomName || request.roomId} on ${request.date} was rejected. Reason: ${trimmedReason}`,
+        type: "rejected",
+        metadata: {
+          requestId,
+          roomId: request.roomId,
+          date: request.date,
+        },
+      });
+    }
+
     return true;
   } catch (error) {
     console.error("Error rejecting request:", error);

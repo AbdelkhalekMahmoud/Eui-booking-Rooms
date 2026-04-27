@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 import { getUserBookings, deleteBooking } from "../../services/bookingService";
+import {
+  deleteRequest,
+  getUserRequests,
+} from "../../services/requestService";
 import { getCurrentUser } from "../../services/authService";
 
 export default function MyBookings() {
@@ -9,9 +13,15 @@ export default function MyBookings() {
   const [filter, setFilter] = useState("all"); // all, upcoming, past
   const [deleteMessage, setDeleteMessage] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [bookingFlashMessage, setBookingFlashMessage] = useState("");
 
   useEffect(() => {
     fetchUserBookings();
+    const flashMessage = sessionStorage.getItem("bookingFlashMessage");
+    if (flashMessage) {
+      setBookingFlashMessage(flashMessage);
+      sessionStorage.removeItem("bookingFlashMessage");
+    }
   }, []);
 
   const formatBookingDateRange = (booking) => {
@@ -42,8 +52,18 @@ export default function MyBookings() {
         return;
       }
 
-      const userBookings = await getUserBookings(currentUser.uid);
-      setBookings(userBookings);
+      const [userBookings, userRequests] = await Promise.all([
+        getUserBookings(currentUser.uid),
+        getUserRequests(currentUser.uid),
+      ]);
+
+      const mergedBookings = [...userBookings, ...userRequests].sort(
+        (first, second) =>
+          new Date(second.createdAt || second.date) -
+          new Date(first.createdAt || first.date),
+      );
+
+      setBookings(mergedBookings);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -81,9 +101,18 @@ export default function MyBookings() {
     try {
       setDeleteMessage("");
       setDeleteError("");
-      await deleteBooking(booking.roomId, booking.date, booking.id);
+      if (booking.source === "request") {
+        await deleteRequest(booking.id);
+      } else {
+        await deleteBooking(booking.roomId, booking.date, booking.id);
+      }
+
       setBookings(bookings.filter((b) => b.id !== booking.id));
-      setDeleteMessage("Booking deleted successfully");
+      setDeleteMessage(
+        booking.source === "request"
+          ? "Booking request deleted successfully"
+          : "Booking deleted successfully",
+      );
       setTimeout(() => setDeleteMessage(""), 3000);
     } catch (err) {
       setDeleteError(err.message || "Failed to delete booking");
@@ -126,6 +155,11 @@ export default function MyBookings() {
         {deleteMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
             <p className="text-sm text-green-800">{deleteMessage}</p>
+          </div>
+        )}
+        {bookingFlashMessage && (
+          <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-xl">
+            <p className="text-sm text-sky-800">{bookingFlashMessage}</p>
           </div>
         )}
         {deleteError && (
@@ -225,6 +259,11 @@ export default function MyBookings() {
                       >
                         {booking.status}
                       </span>
+                      {booking.source === "request" && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Booking request
+                        </p>
+                      )}
                       {booking.status === "approved" && (
                         <p className="text-xs text-slate-500 mt-1">Confirmed</p>
                       )}
@@ -254,8 +293,8 @@ export default function MyBookings() {
                 {booking.status === "pending" && (
                   <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                     <p className="text-sm text-yellow-800">
-                      Your booking request is pending approval. You'll receive a
-                      notification once it's reviewed.
+                      Your booking request is pending approval. You can check
+                      this page for status updates once the admin reviews it.
                     </p>
                   </div>
                 )}
@@ -263,9 +302,18 @@ export default function MyBookings() {
                 {booking.status === "rejected" && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
                     <p className="text-sm text-red-800">
-                      Your booking request was not approved. Please contact an
-                      administrator for more information.
+                      Your booking request was not approved.
                     </p>
+                    {booking.rejectionReason && (
+                      <p className="mt-2 text-sm text-red-700">
+                        Reason: {booking.rejectionReason}
+                      </p>
+                    )}
+                    {booking.rejectedByName && (
+                      <p className="mt-1 text-xs text-red-600">
+                        Rejected by: {booking.rejectedByName}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

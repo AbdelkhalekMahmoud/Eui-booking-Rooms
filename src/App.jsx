@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Navbar from "./components/common/Navbar";
+import RoomChatbot from "./components/common/RoomChatbot";
 import Login from "./pages/auth/login";
 import Rooms from "./pages/users/rooms";
 import RoomDetails from "./pages/users/roomdetails";
@@ -106,6 +107,7 @@ function AppRoutes({ user, userRole }) {
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      {user && <RoomChatbot />}
     </div>
   );
 }

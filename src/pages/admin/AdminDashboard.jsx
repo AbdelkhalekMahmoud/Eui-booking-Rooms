@@ -19,6 +19,8 @@ export default function AdminDashboard() {
   const [roomUtilization, setRoomUtilization] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     fetchDashboardData();
@@ -48,25 +50,43 @@ export default function AdminDashboard() {
 
   const handleApproveRequest = async (requestId) => {
     try {
+      setActionMessage("");
+      setActionError("");
       const currentUser = getCurrentUser();
       await approveRequest(requestId, {
         name: currentUser?.displayName || currentUser?.email || "Admin",
         email: currentUser?.email || "",
       });
+      setActionMessage("Booking request approved successfully.");
       fetchDashboardData(); // Refresh data
     } catch (error) {
       console.error("Error approving request:", error);
-      alert("Error approving request: " + error.message);
+      setActionError(error.message || "Error approving request.");
     }
   };
 
   const handleRejectRequest = async (requestId) => {
+    const rejectionReason = window.prompt(
+      "Enter the reason for rejecting this booking request:",
+    );
+
+    if (rejectionReason === null) {
+      return;
+    }
+
     try {
-      await rejectRequest(requestId);
+      setActionMessage("");
+      setActionError("");
+      const currentUser = getCurrentUser();
+      await rejectRequest(requestId, rejectionReason, {
+        name: currentUser?.displayName || currentUser?.email || "Admin",
+        email: currentUser?.email || "",
+      });
+      setActionMessage("Booking request rejected and reason saved.");
       fetchDashboardData(); // Refresh data
     } catch (error) {
       console.error("Error rejecting request:", error);
-      alert("Error rejecting request: " + error.message);
+      setActionError(error.message || "Error rejecting request.");
     }
   };
 
@@ -90,6 +110,17 @@ export default function AdminDashboard() {
             Manage rooms, bookings, and requests
           </p>
         </div>
+
+        {actionMessage && (
+          <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            {actionMessage}
+          </div>
+        )}
+        {actionError && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            {actionError}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

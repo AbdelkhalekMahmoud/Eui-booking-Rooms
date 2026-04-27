@@ -138,6 +138,7 @@ export default function RoomDetails() {
   const { id: roomId } = useParams();
   const formatDateInputValue = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const todayDate = formatDateInputValue(new Date());
   const [selectedDate, setSelectedDate] = useState(() =>
     formatDateInputValue(new Date()),
   );
@@ -473,6 +474,10 @@ export default function RoomDetails() {
 
     try {
       await createRequest(bookingData);
+      sessionStorage.setItem(
+        "bookingFlashMessage",
+        `Your booking request for ${room.name} on ${selectedDate} from ${startTime} to ${endTime} was sent successfully.`,
+      );
       setBookingMessage(
         "Booking request sent to admin. The slot is blocked until approval.",
       );
@@ -676,29 +681,48 @@ export default function RoomDetails() {
                 <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-slate-500">
                   Select Date
                 </p>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => updateDate(-1)}
-                    className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
-                  >
-                    <ChevronLeft />
-                  </button>
-                  <span className="text-center">
-                    <p className="font-semibold text-slate-900">
-                      {formatDateDisplay(selectedDate)}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {getWeekday(selectedDate)}
-                    </p>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => updateDate(1)}
-                    className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
-                  >
-                    <ChevronRight />
-                  </button>
+                <div className="space-y-3 rounded-2xl bg-slate-50 px-4 py-4">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      Choose from calendar
+                    </span>
+                    <input
+                      type="date"
+                      min={todayDate}
+                      value={selectedDate}
+                      onChange={(event) => setSelectedDate(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+                    />
+                  </label>
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => updateDate(-1)}
+                      disabled={selectedDate <= todayDate}
+                      className={`rounded-full p-2 transition ${
+                        selectedDate <= todayDate
+                          ? "cursor-not-allowed text-slate-300"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      <ChevronLeft />
+                    </button>
+                    <span className="text-center">
+                      <p className="font-semibold text-slate-900">
+                        {formatDateDisplay(selectedDate)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {getWeekday(selectedDate)}
+                      </p>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateDate(1)}
+                      className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100"
+                    >
+                      <ChevronRight />
+                    </button>
+                  </div>
                 </div>
               </div>
 

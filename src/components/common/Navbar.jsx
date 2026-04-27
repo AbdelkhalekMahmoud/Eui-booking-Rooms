@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { logout, onAuthStateChange } from "../../services/authService";
+import {
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  subscribeToUserNotifications,
+} from "../../services/notificationService";
 import euiLogo from "../../assets/eui-logo.png";
 
 export default function Navbar({ userRole = "user" }) {
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const location = useLocation();
   const isAdmin = userRole === "admin";
   const homePath = isAdmin ? "/admin" : "/rooms";
@@ -18,6 +25,15 @@ export default function Navbar({ userRole = "user" }) {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotifications([]);
+      return () => {};
+    }
+
+    return subscribeToUserNotifications(user.uid, setNotifications);
+  }, [user?.uid]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -29,6 +45,25 @@ export default function Navbar({ userRole = "user" }) {
   };
 
   const isActive = (path) => location.pathname === path;
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  const getNotificationTone = (type) => {
+    switch (type) {
+      case "approved":
+        return "border-green-200 bg-green-50 text-green-800";
+      case "rejected":
+        return "border-red-200 bg-red-50 text-red-800";
+      case "request":
+        return "border-sky-200 bg-sky-50 text-sky-800";
+      default:
+        return "border-slate-200 bg-slate-50 text-slate-700";
+    }
+  };
+
+  const formatNotificationTime = (dateValue) => {
+    if (!dateValue) return "";
+    return new Date(dateValue).toLocaleString();
+  };
 
   return (
     <nav className="sticky top-0 z-40 border-b border-white/60 bg-white/75 shadow-[0_18px_50px_rgba(15,38,92,0.08)] backdrop-blur-xl">
@@ -94,6 +129,92 @@ export default function Navbar({ userRole = "user" }) {
 
             {user ? (
               <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsNotificationsOpen((current) => !current)}
+                    className="relative rounded-full border border-[rgba(23,95,184,0.14)] bg-white p-3 text-slate-700 shadow-sm transition hover:text-[var(--eui-blue)]"
+                    aria-label="Open notifications"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                      />
+                    </svg>
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {isNotificationsOpen && (
+                    <div className="absolute right-0 top-14 z-50 w-96 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_24px_70px_rgba(15,38,92,0.16)]">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Notifications
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {unreadCount} unread
+                          </p>
+                        </div>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => markAllNotificationsAsRead(notifications)}
+                            className="text-xs font-semibold text-[var(--eui-blue)]"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
+                        {notifications.length === 0 ? (
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                            No notifications yet.
+                          </div>
+                        ) : (
+                          notifications.map((notification) => (
+                            <button
+                              key={notification.id}
+                              type="button"
+                              onClick={() => markNotificationAsRead(notification.id)}
+                              className={`block w-full rounded-2xl border p-4 text-left transition hover:shadow-sm ${getNotificationTone(notification.type)} ${notification.read ? "opacity-70" : ""}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold">
+                                    {notification.title}
+                                  </p>
+                                  <p className="mt-1 text-sm">
+                                    {notification.message}
+                                  </p>
+                                </div>
+                                {!notification.read && (
+                                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
+                                )}
+                              </div>
+                              <p className="mt-2 text-xs opacity-80">
+                                {formatNotificationTime(notification.createdAt)}
+                              </p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="rounded-full border border-[rgba(23,95,184,0.14)] bg-white px-4 py-2 text-sm text-slate-600 shadow-sm">
                   {user.displayName || user.email}
                 </div>
