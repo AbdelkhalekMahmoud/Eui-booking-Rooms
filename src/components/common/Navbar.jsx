@@ -316,6 +316,64 @@ export default function Navbar({ userRole = "user" }) {
               </Link>
             )}
 
+            {user && (
+              <div className="mt-3 rounded-3xl border border-[rgba(23,95,184,0.08)] bg-slate-50 p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Notifications
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {unreadCount} unread
+                    </p>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllNotificationsAsRead(notifications)}
+                      className="text-xs font-semibold text-[var(--eui-blue)]"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-72 space-y-2 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                      No notifications yet.
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => markNotificationAsRead(notification.id)}
+                        className={`block w-full rounded-2xl border bg-white p-3 text-left transition ${getNotificationTone(notification.type)} ${notification.read ? "opacity-70" : ""}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {notification.title}
+                            </p>
+                            <p className="mt-1 text-sm">
+                              {notification.message}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
+                          )}
+                        </div>
+                        <p className="mt-2 text-xs opacity-80">
+                          {formatNotificationTime(notification.createdAt)}
+                        </p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
             {user ? (
               <div className="mt-4 border-t border-slate-200 pt-4">
                 <div className="rounded-2xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
